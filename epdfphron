@@ -1,0 +1,79 @@
+#!/usr/bin/env stack
+-- stack --nix --install-ghc runghc --package turtle --package protolude
+
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+
+import Protolude
+import Turtle
+import qualified Control.Foldl as L
+
+import Data.Text (words)
+
+type PdfViewer = [Text]
+type PID = Text
+
+pdfViewer :: PdfViewer
+pdfViewer = ["zathura", "evince", "okular"]
+
+
+data CommandType
+    = Status
+    | Save Text
+    | Load Text
+    | Show
+
+data Command
+    = Command
+    { verbose :: Bool
+    , action :: CommandType
+    }
+
+cmdLine :: Parser Command
+cmdLine = Command
+        <$> (switch "verbose" 'v' "display verbose output")
+        <*> (fmap (const Status)
+                (subcommand "status" "display information about current session" empty)
+           <|> fmap Save
+                (subcommand "save" "save the current session to the database"
+                    (optText "name" 'n' "name of session"))
+           <|> fmap Load
+                (subcommand "load" "restore a session from the database"
+                    (optText "name" 'n' "name of session"))
+           <|> fmap (const Show)
+                (subcommand "show" "show saved sessions" empty)
+            )
+
+
+getPIDs :: PdfViewer -> Shell (Maybe PID)
+getPIDs viewers = numbers
+  where
+    psout   = inproc "ps" ["aux"] empty
+    grepped = grep (choice (fmap (contains . text) viewers)) psout
+    textl   = fmap (words . lineToText) grepped
+    numbers = fmap head textl
+
+getOpenedPdfs :: PID -> Shell Turtle.FilePath
+getOpenedPdfs pid = do
+    ls ("/proc" </> (fromString $ toS pid) </> "fd")
+
+
+main :: IO ()
+main = do
+    com <- options "Epdfphron - the sheppard of your opened pdfs\n(C) 2017 Robin Raymond; licensed under GPL 3" cmdLine
+    let vb = verbose com
+        ac = action com
+    case ac of
+        Status -> status (logger vb)
+        _      -> echo "Stub. TODO: Implement"
+
+
+logger :: MonadIO m => Bool -> Line -> m ()
+logger False _ = return ()
+logger True t  = echo t
+
+type Logger = Line -> IO ()
+
+status :: MonadIO m => Logger -> m ()
+status l = do
+    pids <- Turtle.fold (getPIDs pdfViewer) L.list
