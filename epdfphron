@@ -1,5 +1,5 @@
 #!/usr/bin/env stack
--- stack --nix --install-ghc runghc --package turtle --package protolude
+-- stack --install-ghc runghc --package turtle --package protolude
 
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
@@ -32,16 +32,14 @@ data Command
 cmdLine :: Parser Command
 cmdLine = Command
         <$> (switch "verbose" 'v' "display verbose output")
-        <*> (fmap (const Status)
-                (subcommand "status" "display information about current session" empty)
+        <*> ((subcommand "status" "display information about current session" (pure Status))
            <|> fmap Save
                 (subcommand "save" "save the current session to the database"
                     (optText "name" 'n' "name of session"))
            <|> fmap Load
                 (subcommand "load" "restore a session from the database"
                     (optText "name" 'n' "name of session"))
-           <|> fmap (const Show)
-                (subcommand "show" "show saved sessions" empty)
+           <|> (subcommand "show" "show saved sessions" (pure Show))
             )
 
 
@@ -68,12 +66,11 @@ main = do
         _      -> echo "Stub. TODO: Implement"
 
 
-logger :: MonadIO m => Bool -> Line -> m ()
+logger :: (Show a, MonadIO m) => Bool -> a -> m ()
 logger False _ = return ()
-logger True t  = echo t
+logger True t  = liftIO $ print t
 
-type Logger = Line -> IO ()
-
-status :: MonadIO m => Logger -> m ()
+-- TODO: Find out what the type signature here is
 status l = do
     pids <- Turtle.fold (getPIDs pdfViewer) L.list
+    l pids
