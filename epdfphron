@@ -1,14 +1,22 @@
 #!/usr/bin/env stack
--- stack --install-ghc runghc --package turtle --package protolude
+{- stack 
+    --install-ghc
+    runghc
+    --package turtle
+    --package protolude
+    --package unix
+-}
 
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-import Protolude
+import Protolude hiding (FilePath, (%))
 import Turtle
 import qualified Control.Foldl as L
-
+import System.Posix.Files
+import qualified Filesystem.Path.CurrentOS as F
 import Data.Text (words)
+import qualified Text.PrettyPrint as PP
 
 type PdfViewer = [Text]
 type PID = Text
@@ -18,7 +26,7 @@ pdfViewer = ["zathura", "evince", "okular"]
 
 
 data CommandType
-    = Status
+    = Status Bool
     | Save Text
     | Load Text
     | Show
@@ -32,7 +40,9 @@ data Command
 cmdLine :: Parser Command
 cmdLine = Command
         <$> (switch "verbose" 'v' "display verbose output")
-        <*> ((subcommand "status" "display information about current session" (pure Status))
+        <*> (fmap Status
+                (subcommand "status" "display information about current session"
+                    (switch "computer" 'c' "display output parsable"))
            <|> fmap Save
                 (subcommand "save" "save the current session to the database"
                     (optText "name" 'n' "name of session"))
@@ -51,10 +61,17 @@ getPIDs viewers = numbers
     textl   = fmap (words . lineToText) grepped
     numbers = fmap head textl
 
-getOpenedPdfs :: PID -> Shell Turtle.FilePath
+getOpenedPdfs :: PID -> Shell FilePath
 getOpenedPdfs pid = do
     ls ("/proc" </> (fromString $ toS pid) </> "fd")
 
+
+isPdf :: FilePath -> Bool
+isPdf p = ((extension p) `elem` (fmap Just ["pdf", "djvu"]))
+
+
+isRegFile :: MonadIO m => FilePath -> m Bool
+isRegFile p = fmap isRegularFile (stat p)
 
 main :: IO ()
 main = do
@@ -62,15 +79,64 @@ main = do
     let vb = verbose com
         ac = action com
     case ac of
-        Status -> status (logger vb)
-        _      -> echo "Stub. TODO: Implement"
+        Status c -> status vb c
+        _        -> echo "Stub. TODO: Implement"
 
 
-logger :: (Show a, MonadIO m) => Bool -> a -> m ()
-logger False _ = return ()
-logger True t  = liftIO $ print t
-
--- TODO: Find out what the type signature here is
-status l = do
+getOpenedDocuments :: MonadIO m => Bool -> m ([PID], [FilePath])
+getOpenedDocuments vb = do
     pids <- Turtle.fold (getPIDs pdfViewer) L.list
-    l pids
+    let scrubbed_pids = concat $ fmap maybeToList pids
+    when vb $ do
+        putStrLn ("The following process id(s) seem to be document viewers" :: Text)
+        print scrubbed_pids
+        putStrLn ("" :: Text)
+
+    fds <-  sequence $ fmap (\x -> (Turtle.fold (getOpenedPdfs x) L.list))
+                            scrubbed_pids
+    let paths = concat fds
+
+    when vb $ do
+        putStrLn ("The following paths are gathered from '/proc'" :: Text)
+        print paths
+        putStrLn ("" :: Text)
+
+    real_paths <- liftIO $ sequence $ fmap (readSymbolicLink . F.encodeString) paths
+
+    when vb $ do
+        putStrLn ("The following symlinks are read from '/proc'" :: Text)
+        print real_paths
+        putStrLn ("" :: Text)
+
+    let a = filter isPdf (fmap fromString real_paths)
+    open_pdfs <- filterM isRegFile a
+
+    when vb $ do
+        putStrLn ("After filtering, the following paths are left" :: Text)
+        print open_pdfs
+        putStrLn ("" :: Text)
+
+    return (scrubbed_pids, open_pdfs)
+
+
+printPath :: MonadIO m => Text -> m ()
+printPath p = do
+    putStr ("  * " :: Text)
+    putStrLn p
+
+status :: MonadIO m => Bool -> Bool -> m ()
+status vb c = do
+    (pids, paths) <- getOpenedDocuments vb
+    let rp = concat $ fmap (maybeToList . rightToMaybe . F.toText) paths
+
+    if c
+    then mapM_ putStrLn rp
+    else do
+        putStrLn ("" :: Text)
+        putStrLn $ format ("Found " %d% " running instance(s) of document viewers.")
+                          (length pids)
+        putStrLn ("" :: Text)
+        putStrLn $ format ("The following " %d% " opened document(s) were found:")
+                          (length rp)
+        mapM_ printPath rp
+
