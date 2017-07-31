@@ -10,7 +10,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-import Protolude hiding (FilePath, (%))
+import Protolude hiding (FilePath, (%), (<>))
 import Turtle
 import qualified Control.Foldl as L
 import System.Posix.Files
@@ -24,6 +24,16 @@ type PID = Text
 pdfViewer :: PdfViewer
 pdfViewer = ["zathura", "evince", "okular"]
 
+name :: Text
+name = "Epdfphron"
+
+version :: Text
+version = "0.1.1"
+
+banner :: Description
+banner = fromString $ toS $
+    name <> " v. " <> version <> " - the sheppard of your opened pdfs\n"
+    <> "(C) 2017 Robin Raymond; licensed under GPL 3"
 
 data CommandType
     = Status Bool
@@ -75,7 +85,7 @@ isRegFile p = fmap isRegularFile (stat p)
 
 main :: IO ()
 main = do
-    com <- options "Epdfphron - the sheppard of your opened pdfs\n(C) 2017 Robin Raymond; licensed under GPL 3" cmdLine
+    com <- options banner cmdLine
     let vb = verbose com
         ac = action com
     case ac of
