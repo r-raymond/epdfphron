@@ -10,10 +10,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-import Protolude hiding (FilePath, (%), (<>))
+import Protolude hiding (FilePath, (%), (<>), fold)
 import Turtle
 import qualified Control.Foldl as L
-import System.Posix.Files
+import qualified System.Posix.Files as P
 import qualified Filesystem.Path.CurrentOS as F
 import Data.Text (words)
 import qualified Text.PrettyPrint as PP
@@ -63,17 +63,59 @@ cmdLine = Command
             )
 
 
-getPIDs :: PdfViewer -> Shell (Maybe PID)
-getPIDs viewers = numbers
-  where
-    psout   = inproc "ps" ["aux"] empty
-    grepped = grep (choice (fmap (contains . text) viewers)) psout
-    textl   = fmap (words . lineToText) grepped
-    numbers = fmap head textl
+viewerPattern :: [Text] -> Pattern Text
+viewerPattern [] = mzero
+viewerPattern (x:xs) = (text x) <|> viewerPattern xs
 
-getOpenedPdfs :: PID -> Shell FilePath
-getOpenedPdfs pid = do
-    ls ("/proc" </> (fromString $ toS pid) </> "fd")
+getProcDirs :: Shell PID
+getProcDirs = do
+    proc <- ls "/proc"
+    s    <- liftIO $ stat proc
+    let p = fmap toText $ stripPrefix "/proc/" proc
+
+    case (p, isDirectory s) of
+        (Just (Right q), True) 
+            -> if (not $ null (match decimal q))
+                  then return q
+                  else mzero
+        otherwise -> mzero
+
+isAccessible :: FilePath -> Shell Text
+isAccessible p = do
+    e <- testfile p
+
+    let t = fmap toS $ toText p
+
+    if e
+    then do
+        a <- liftIO $ mapM (\x -> P.fileAccess x True False True) t
+        case (a, t) of
+            (Right True, Right x) -> return (toS x)
+            otherwise    -> mzero
+    else mzero
+
+getPIDs :: PdfViewer -> Shell PID
+getPIDs viewers = do
+    pd <- getProcDirs
+
+    let exe = "/proc" </> (fromString $ toS pd) </> "exe"
+
+    t <- isAccessible exe
+
+    l <- liftIO $ P.readSymbolicLink (toS t)
+
+    if (not $ null $ match (contains (viewerPattern viewers)) (toS l))
+    then return pd
+    else mzero
+
+
+getOpenedFiles :: PID -> Shell FilePath
+getOpenedFiles pid = do
+    f <- ls ("/proc" </> (fromString $ toS pid) </> "fd")
+    b <- testfile f
+    if b
+    then pure f
+    else mzero
 
 
 isPdf :: FilePath -> Bool
@@ -93,40 +135,21 @@ main = do
         _        -> echo "Stub. TODO: Implement"
 
 
-getOpenedDocuments :: MonadIO m => Bool -> m ([PID], [FilePath])
+getOpenedDocuments :: Bool -> Shell (PID, [Text])
 getOpenedDocuments vb = do
-    pids <- Turtle.fold (getPIDs pdfViewer) L.list
-    let scrubbed_pids = concat $ fmap maybeToList pids
-    when vb $ do
-        putStrLn ("The following process id(s) seem to be document viewers" :: Text)
-        print scrubbed_pids
-        putStrLn ("" :: Text)
+    pid <- getPIDs pdfViewer
+    when vb $ putStrLn (format ("Observing PID=" %s) pid)
 
-    fds <-  sequence $ fmap (\x -> (Turtle.fold (getOpenedPdfs x) L.list))
-                            scrubbed_pids
-    let paths = concat fds
+    fd <- fold (getOpenedFiles pid) L.list
 
-    when vb $ do
-        putStrLn ("The following paths are gathered from '/proc'" :: Text)
-        print paths
-        putStrLn ("" :: Text)
+    when vb $ putStrLn ("Open Files:\n" :: Text) >> print fd
 
-    real_paths <- liftIO $ sequence $ fmap (readSymbolicLink . F.encodeString) paths
+    real_path <- liftIO $ mapM (P.readSymbolicLink . F.encodeString) fd
+    let paths = filter (isPdf . fromString) real_path
 
-    when vb $ do
-        putStrLn ("The following symlinks are read from '/proc'" :: Text)
-        print real_paths
-        putStrLn ("" :: Text)
+    when vb $ putStrLn ("Read Paths:\n" :: Text) >> print paths
 
-    let a = filter isPdf (fmap fromString real_paths)
-    open_pdfs <- filterM isRegFile a
-
-    when vb $ do
-        putStrLn ("After filtering, the following paths are left" :: Text)
-        print open_pdfs
-        putStrLn ("" :: Text)
-
-    return (scrubbed_pids, open_pdfs)
+    pure (pid, fmap toS paths)
 
 
 printPath :: MonadIO m => Text -> m ()
@@ -136,8 +159,10 @@ printPath p = do
 
 status :: MonadIO m => Bool -> Bool -> m ()
 status vb c = do
-    (pids, paths) <- getOpenedDocuments vb
-    let rp = concat $ fmap (maybeToList . rightToMaybe . F.toText) paths
+    dat <- fold (getOpenedDocuments vb) L.list
+    let paths = fmap snd dat
+        pids  = fmap fst dat
+    let rp = concat $ paths
 
     if c
     then mapM_ putStrLn rp
