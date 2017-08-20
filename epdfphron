@@ -1,29 +1,36 @@
 #!/usr/bin/env stack
 {- stack
+    --nix
     --install-ghc
     runghc
     --package turtle
     --package protolude
     --package unix
     --package xdg-basedir
+    --package pureMD5
 -}
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-import           Protolude                      hiding (FilePath, fold, (%),
-                                                 (<>))
+import           Protolude                      hiding (FilePath, die, fold,
+                                                 (%), (<>))
 import           Turtle
 
-import           Data.Text                      (words)
 import           System.Environment.XDG.BaseDir (getUserDataDir)
 
 import qualified Control.Foldl                  as L
+import qualified Data.Binary                    as B
+import qualified Data.ByteString.Base64.Lazy    as B64
+import qualified Data.ByteString.Lazy           as BL
+import qualified Data.Digest.Pure.MD5           as M
+import qualified Data.Text                      as T
 import qualified Filesystem.Path.CurrentOS      as F
 import qualified System.Posix.Files             as P
 
 type PdfViewer = [Text]
 type PID = Text
+type Verbose = Bool
 
 pdfViewer :: PdfViewer
 pdfViewer = ["zathura", "evince", "okular"]
@@ -125,8 +132,8 @@ getOpenedFiles pid = do
 isPdf :: FilePath -> Bool
 isPdf p = ((extension p) `elem` (fmap Just ["pdf", "djvu"]))
 
-isTempFile :: Text -> Bool
-isTempFile p = case stripPrefix "/tmp/" (fromText p) of
+isTempFile :: FilePath -> Bool
+isTempFile p = case stripPrefix "/tmp/" p of
     Just _  -> True
     Nothing -> False
 
@@ -139,42 +146,43 @@ main = do
     let vb = verbose com
         ac = action com
     case ac of
-        Status c -> status vb c
-        _        -> echo "Stub. TODO: Implement"
+        Status c  -> status vb c
+        Save name -> save vb name
+        _         -> echo "Stub. TODO: Implement"
 
 
-getOpenedDocuments :: Bool -> Shell (PID, [Text])
+getOpenedDocuments :: Bool -> Shell (PID, [FilePath])
 getOpenedDocuments vb = do
     pid <- getPIDs pdfViewer
     when vb $ putStrLn (format ("Observing PID=" %s) pid)
 
     fd <- fold (getOpenedFiles pid) L.list
 
-    when vb $ putStrLn ("Open Files:\n" :: Text) >> print fd
+    when vb $ putStrLn ("Open Files:" :: Text) >> print fd
 
     real_path <- liftIO $ mapM (P.readSymbolicLink . F.encodeString) fd
     let paths = filter (isPdf . fromString) real_path
 
-    when vb $ putStrLn ("Read Paths:\n" :: Text) >> print paths
+    when vb $ putStrLn ("Read Paths:" :: Text) >> print paths
 
-    pure (pid, fmap toS paths)
+    pure (pid, fmap F.decodeString paths)
 
 
-printPath :: MonadIO m => Text -> m ()
+printPath :: MonadIO m => FilePath -> m ()
 printPath p = do
     putStr ("  * " :: Text)
-    putStrLn p
+    putStrLn (F.encodeString p)
 
-status :: MonadIO m => Bool -> Bool -> m ()
+status :: MonadIO m => Verbose -> Bool -> m ()
 status vb c = do
     dat <- fold (getOpenedDocuments vb) L.list
     let paths = fmap snd dat
         pids  = fmap fst dat
-        rp = concat $ paths
+        rp = concat paths
         temp = filter isTempFile rp
 
     if c
-    then mapM_ putStrLn rp
+    then mapM_ (putStrLn . F.encodeString) rp
     else do
         putStrLn ("" :: Text)
         putStrLn $ format ("Found " %d% " running instance(s) of document viewers.")
@@ -190,5 +198,63 @@ status vb c = do
         mapM_ printPath temp
 
         liftIO $ getUserDataDir "epdfphron" >>= print
+
+save :: MonadIO m => Verbose -> Text -> m ()
+save vb name = do
+    datadir <- liftIO $ fmap (fromText . toS) (getUserDataDir "epdfphron")
+
+    let sessiondir = datadir </> "sessions"
+        rescuedir = datadir </> "rescue"
+
+    exists <- testdir sessiondir
+
+    when (not exists) $ do
+        when vb $ putStrLn ("Creating data dir:" :: Text) >> print datadir
+        mktree sessiondir
+        mktree rescuedir
+
+    let path = sessiondir </> fromText name
+    fexists <- testfile path
+
+    when fexists $ do
+        die "ERROR: Name already used."
+
+    dat <- fold (getOpenedDocuments False) L.list
+    let paths = fmap snd dat
+        rp = concat paths
+        rescue = rescuedir </> (fromText name)
+
+    mkdir rescue
+    rescuedp <- mapM (rescueTempFile vb rescue) rp
+
+    let content = T.unlines $ fmap (toS . F.encodeString) rescuedp
+
+    liftIO $ writeTextFile path content
+    when vb $ putStrLn (format ("Saved " %d% " files in " %fp)
+                               (length rp) path)
+
+rescueTempFile :: MonadIO m => Verbose -> FilePath -> FilePath -> m FilePath
+rescueTempFile vb folder path =
+    if isTempFile path
+    then do
+        content <- liftIO $ BL.readFile (F.encodeString path)
+        let hash = T.map b64fix $ toS $ B64.encode $ B.encode $ M.md5 content
+            b64fix x = case x of
+                '+' -> '-'
+                '/' -> '_'
+                z   -> z
+            target = T.concat [ (toS $ F.encodeString $ basename path),
+                                "-", hash, ".",
+                        case (extension path) of
+                                    (Just e) -> e
+                                    Nothing  -> ""
+                            ]
+            targetpath = folder </> (fromText target)
+
+        when vb $ putStrLn (format ("Rescuing " %fp% " to " %fp) path targetpath)
+        cp path targetpath
+        pure targetpath
+    else pure path
+
 
 -- vim: set filetype=haskell:
