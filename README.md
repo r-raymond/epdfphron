@@ -37,6 +37,23 @@ Available commands:
   show                     show saved sessions
 ```
 
+## The script executes very sluggishly
+
+Since this is interpreted haskell, the startuptime of the script might feel
+quite slow. To combat this, you can compile the script as follows.
+
+```
+> cp epdfphron Epdfphron.hs
+> stack ghc Epdfphron.hs
+[1 of 1] Compiling Main             ( Epfphron.hs, Epfphron.o )
+Linking Epfphron ...
+> file Epdfphron
+Epfphron: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, ...
+> ./Epdfphron
+Epdfphron v. 0.1.1 - the sheppard of your opened pdfs
+...
+```
+
 ## Sample Session
 
 ```
