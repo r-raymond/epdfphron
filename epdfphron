@@ -63,7 +63,7 @@ version = "0.1.1"
 
 banner :: Description
 banner = fromString $ toS $
-    name <> " v. " <> version <> " - the shepherd of your opened pdfs\n"
+    name <> " v. " <> version <> " - the shepherd of your open pdfs\n"
     <> "(C) 2017 Robin Raymond; licensed under GPL 3"
 
 data CommandType
@@ -209,12 +209,12 @@ status vb c = do
         putStrLn $ format ("Found " %d% " running instance(s) of document viewers.")
                           (length pids)
         putStrLn ("" :: Text)
-        putStrLn $ format ("The following " %d% " opened document(s) were found:")
+        putStrLn $ format ("The following " %d% " open document(s) were found:")
                           (length rp)
         mapM_ printPath rp
 
         putStrLn ("" :: Text)
-        putStrLn $ format ("The following " %d% " opened document(s) are temporary:")
+        putStrLn $ format ("The following " %d% " open document(s) are temporary:")
                           (length temp)
         mapM_ printPath temp
 

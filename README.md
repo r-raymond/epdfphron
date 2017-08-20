@@ -1,14 +1,14 @@
 # epdfphron
-Epdfphron - The shepherd of your opened pdfs
+Epdfphron - The shepherd of your open pdfs
 
-Have you ever worried to restart your computer because of the currently opened
+Have you ever worried to restart your computer because of the currently open
 documents? Fear no longer, for Epdfphron is here!
 
 Epdfphron is a small haskell script that manages pdf (djvu, ...) sessions. It
 
- * Shows all currently opened pdfs. See subcommand `status`.
- * Saves all currently opened pdfs to a session file. Also makes backups of
-   files that reside in the temp directory (E.g. if you opened a pdf directly
+ * Shows all currently open pdfs. See subcommand `status`.
+ * Saves all currently open pdfs to a session file. Also makes backups of
+   files that reside in the temp directory (E.g. if you open a pdf directly
    after downloading without saving it). See subcommand `save`
  * Shows all saved sessions. See subcommand `show`
  * Loads a saved session. See subcommand `load`. Note that for this to work, you
@@ -21,7 +21,7 @@ After installing `stack` you can call this script like any other shell script.
 ```
 > chmod +x epdfphron
 > ./epdfphron
-Epdfphron v. 0.1.1 - the shepherd of your opened pdfs
+Epdfphron v. 0.1.1 - the shepherd of your open pdfs
 (C) 2017 Robin Raymond; licensed under GPL 3
 
 Usage: epdfphron [-v|--verbose] (status | save | load | show)
@@ -50,7 +50,7 @@ Linking Epfphron ...
 > file Epdfphron
 Epfphron: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, ...
 > ./Epdfphron
-Epdfphron v. 0.1.1 - the shepherd of your opened pdfs
+Epdfphron v. 0.1.1 - the shepherd of your open pdfs
 ...
 ```
 
@@ -61,14 +61,14 @@ Epdfphron v. 0.1.1 - the shepherd of your opened pdfs
 
 Found 2 running instance(s) of document viewers.
 
-The following 32 opened document(s) were found:
+The following 32 open document(s) were found:
   * /home/user/lat/phd/root.pdf
   * /tmp/mozilla_user0/1708.05009-1.pdf
   .
   .
   .
 
-The following 1 opened document(s) are temporary:
+The following 1 open document(s) are temporary:
   * /tmp/mozilla_user0/1708.05009-1.pdf
 ```
 
