@@ -14,5 +14,63 @@ Epdfphron is a small haskell script that manages pdf (djvu, ...) sessions. It
  * Loads a saved session. See subcommand `load`. Note that for this to work, you
    need to specify your prefered pdf viewer.
 
+## How to install
+
+After installing `stack` you can call this script like any other shell script.
+
+```
+> chmod +x epdfphron
+> ./epdfphron
+Epdfphron v. 0.1.1 - the sheppard of your opened pdfs
+(C) 2017 Robin Raymond; licensed under GPL 3
+
+Usage: epdfphron [-v|--verbose] (status | save | load | show)
+
+Available options:
+  -h,--help                Show this help text
+  -v,--verbose             display verbose output
+
+Available commands:
+  status                   display information about current session
+  save                     save the current session to the database
+  load                     restore a session from the database
+  show                     show saved sessions
+```
+
+## Sample Session
+
+```
+> ./epdfphron status
+
+Found 2 running instance(s) of document viewers.
+
+The following 32 opened document(s) were found:
+  * /home/user/lat/phd/root.pdf
+  * /tmp/mozilla_user0/1708.05009-1.pdf
+  .
+  .
+  .
+
+The following 1 opened document(s) are temporary:
+  * /tmp/mozilla_user0/1708.05009-1.pdf
+```
+
+```
+> ./epdfphron save -n "test-session" --verbose
+Rescuing /tmp/mozilla_user0/1708.05009-1.pdf to
+/home/user/.local/share/epdfphron/rescue/test-session/1708-s2R4NAV-Yt_b1xE8i9QATw==.pdf
+Saved 2 files in /home/user/.local/share/epdfphron/sessions/test-session
+```
+
+
+```
+> ./epdfphron show
+
+Found 1 session(s)
+  * test-session
+```
+
+## License
+
 (C) 2017 Robin Raymond
 Licensed under GPL-3
