@@ -1,5 +1,5 @@
 # epdfphron
-Epdfphron - The sheppard of your opened pdfs
+Epdfphron - The shepherd of your opened pdfs
 
 Have you ever worried to restart your computer because of the currently opened
 documents? Fear no longer, for Epdfphron is here!
@@ -12,7 +12,7 @@ Epdfphron is a small haskell script that manages pdf (djvu, ...) sessions. It
    after downloading without saving it). See subcommand `save`
  * Shows all saved sessions. See subcommand `show`
  * Loads a saved session. See subcommand `load`. Note that for this to work, you
-   need to specify your prefered pdf viewer.
+   need to specify your preferred pdf viewer.
 
 ## How to install
 
@@ -21,7 +21,7 @@ After installing `stack` you can call this script like any other shell script.
 ```
 > chmod +x epdfphron
 > ./epdfphron
-Epdfphron v. 0.1.1 - the sheppard of your opened pdfs
+Epdfphron v. 0.1.1 - the shepherd of your opened pdfs
 (C) 2017 Robin Raymond; licensed under GPL 3
 
 Usage: epdfphron [-v|--verbose] (status | save | load | show)
@@ -39,7 +39,7 @@ Available commands:
 
 ## The script executes very sluggishly
 
-Since this is interpreted haskell, the startuptime of the script might feel
+Since this is interpreted haskell, the startup time of the script might feel
 quite slow. To combat this, you can compile the script as follows.
 
 ```
@@ -50,7 +50,7 @@ Linking Epfphron ...
 > file Epdfphron
 Epfphron: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, ...
 > ./Epdfphron
-Epdfphron v. 0.1.1 - the sheppard of your opened pdfs
+Epdfphron v. 0.1.1 - the shepherd of your opened pdfs
 ...
 ```
 

@@ -63,7 +63,7 @@ version = "0.1.1"
 
 banner :: Description
 banner = fromString $ toS $
-    name <> " v. " <> version <> " - the sheppard of your opened pdfs\n"
+    name <> " v. " <> version <> " - the shepherd of your opened pdfs\n"
     <> "(C) 2017 Robin Raymond; licensed under GPL 3"
 
 data CommandType
