@@ -27,6 +27,7 @@ import qualified Data.Digest.Pure.MD5           as M
 import qualified Data.Text                      as T
 import qualified Filesystem.Path.CurrentOS      as F
 import qualified System.Posix.Files             as P
+import qualified System.Process                 as S
 
 type PdfViewer = [Text]
 type PID = Text
@@ -34,6 +35,9 @@ type Verbose = Bool
 
 pdfViewer :: PdfViewer
 pdfViewer = ["zathura", "evince", "okular"]
+
+prefViewer :: [Char]
+prefViewer = "zathura"
 
 name :: Text
 name = "Epdfphron"
@@ -148,6 +152,7 @@ main = do
     case ac of
         Status c  -> status vb c
         Save name -> save vb name
+        Load name -> load vb name
         _         -> echo "Stub. TODO: Implement"
 
 
@@ -198,6 +203,19 @@ status vb c = do
         mapM_ printPath temp
 
         liftIO $ getUserDataDir "epdfphron" >>= print
+
+load :: MonadIO m => Verbose -> Text -> m ()
+load vb name = do
+    datadir <- liftIO $ fmap (fromText . toS) (getUserDataDir "epdfphron")
+    let sessionsfile = datadir </> "sessions" </> (fromText name)
+    exists <- testfile sessionsfile
+
+    when (not exists) $ die "Error: Can't fine session."
+
+    c <- liftIO $ readTextFile sessionsfile
+    let paths = fmap (return . toS) $ T.lines c
+    liftIO $ mapM_ (S.spawnProcess prefViewer) paths
+
 
 save :: MonadIO m => Verbose -> Text -> m ()
 save vb name = do
