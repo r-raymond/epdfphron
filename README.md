@@ -16,7 +16,7 @@ Epdfphron is a small haskell script that manages pdf (djvu, ...) sessions. It
 
 ## How to install
 
-After installing `stack` you can call this script like any other shell script.
+After installing `stack` you can call this script like any other shell script (tested with `lts-9.1`).
 
 ```
 > chmod +x epdfphron
