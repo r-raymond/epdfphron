@@ -14,7 +14,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import           Protolude                      hiding (FilePath, die, fold,
-                                                 (%), (<>))
+                                                 (%), (<>), show)
 import           Turtle
 
 import           System.Environment.XDG.BaseDir (getUserDataDir)
@@ -153,7 +153,7 @@ main = do
         Status c  -> status vb c
         Save name -> save vb name
         Load name -> load vb name
-        _         -> echo "Stub. TODO: Implement"
+        Show      -> show
 
 
 getOpenedDocuments :: Bool -> Shell (PID, [FilePath])
@@ -216,6 +216,15 @@ load vb name = do
     let paths = fmap (return . toS) $ T.lines c
     liftIO $ mapM_ (S.spawnProcess prefViewer) paths
 
+show :: MonadIO m => m ()
+show = do
+    datadir <- liftIO $ fmap (fromText . toS) (getUserDataDir "epdfphron")
+    sessions <- fold (ls (datadir </> "sessions")) L.list
+
+    putStrLn (format ("Found " %d% " session(s)") (length sessions))
+    let printS s = putStrLn (format ("  * " %fp) (basename s))
+
+    mapM_ printS sessions
 
 save :: MonadIO m => Verbose -> Text -> m ()
 save vb name = do
