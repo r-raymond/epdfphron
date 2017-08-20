@@ -1,22 +1,26 @@
 #!/usr/bin/env stack
-{- stack 
+{- stack
     --install-ghc
     runghc
     --package turtle
     --package protolude
     --package unix
+    --package xdg-basedir
 -}
 
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-import Protolude hiding (FilePath, (%), (<>), fold)
-import Turtle
-import qualified Control.Foldl as L
-import qualified System.Posix.Files as P
-import qualified Filesystem.Path.CurrentOS as F
-import Data.Text (words)
-import qualified Text.PrettyPrint as PP
+import           Protolude                      hiding (FilePath, fold, (%),
+                                                 (<>))
+import           Turtle
+
+import           Data.Text                      (words)
+import           System.Environment.XDG.BaseDir (getUserDataDir)
+
+import qualified Control.Foldl                  as L
+import qualified Filesystem.Path.CurrentOS      as F
+import qualified System.Posix.Files             as P
 
 type PdfViewer = [Text]
 type PID = Text
@@ -44,7 +48,7 @@ data CommandType
 data Command
     = Command
     { verbose :: Bool
-    , action :: CommandType
+    , action  :: CommandType
     }
 
 cmdLine :: Parser Command
@@ -64,7 +68,7 @@ cmdLine = Command
 
 
 viewerPattern :: [Text] -> Pattern Text
-viewerPattern [] = mzero
+viewerPattern []     = mzero
 viewerPattern (x:xs) = (text x) <|> viewerPattern xs
 
 getProcDirs :: Shell PID
@@ -74,7 +78,7 @@ getProcDirs = do
     let p = fmap toText $ stripPrefix "/proc/" proc
 
     case (p, isDirectory s) of
-        (Just (Right q), True) 
+        (Just (Right q), True)
             -> if (not $ null (match decimal q))
                   then return q
                   else mzero
@@ -91,7 +95,7 @@ isAccessible p = do
         a <- liftIO $ mapM (\x -> P.fileAccess x True False True) t
         case (a, t) of
             (Right True, Right x) -> return (toS x)
-            otherwise    -> mzero
+            otherwise             -> mzero
     else mzero
 
 getPIDs :: PdfViewer -> Shell PID
@@ -121,6 +125,10 @@ getOpenedFiles pid = do
 isPdf :: FilePath -> Bool
 isPdf p = ((extension p) `elem` (fmap Just ["pdf", "djvu"]))
 
+isTempFile :: Text -> Bool
+isTempFile p = case stripPrefix "/tmp/" (fromText p) of
+    Just _  -> True
+    Nothing -> False
 
 isRegFile :: MonadIO m => FilePath -> m Bool
 isRegFile p = fmap isRegularFile (stat p)
@@ -162,7 +170,8 @@ status vb c = do
     dat <- fold (getOpenedDocuments vb) L.list
     let paths = fmap snd dat
         pids  = fmap fst dat
-    let rp = concat $ paths
+        rp = concat $ paths
+        temp = filter isTempFile rp
 
     if c
     then mapM_ putStrLn rp
@@ -175,3 +184,9 @@ status vb c = do
                           (length rp)
         mapM_ printPath rp
 
+        putStrLn ("" :: Text)
+        putStrLn $ format ("The following " %d% " opened document(s) are temporary:")
+                          (length temp)
+        mapM_ printPath temp
+
+        liftIO $ getUserDataDir "epdfphron" >>= print
