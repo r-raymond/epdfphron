@@ -190,3 +190,5 @@ status vb c = do
         mapM_ printPath temp
 
         liftIO $ getUserDataDir "epdfphron" >>= print
+
+-- vim: set filetype=haskell:
