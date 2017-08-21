@@ -21,10 +21,10 @@ Epdfphron uses `procfs` to gather information, so it has no dependencies on
 external tools. On the other hand, your unix derivative has to support `procfs`
 for this to work.
 
- :heavy_check_mark: Linux with kernel version >= 2.6
- :heavy_multiplication_x: MacOS
- :heavy_multiplication_x: Windows
- :grey_question: FreeBSD, OpenBSD, ...
+ * :heavy_check_mark: Linux with kernel version >= 2.6
+ * :heavy_multiplication_x: MacOS
+ * :heavy_multiplication_x: Windows
+ * :grey_question: FreeBSD, OpenBSD, ...
 
 
 If you are a FreeBSD, OpenBSD, ... user and want to try the script, please tell
@@ -107,5 +107,4 @@ Found 1 session(s)
 
 ## License
 
-(C) 2017 Robin Raymond
-Licensed under GPL-3
+(C) 2017 Robin Raymond; Licensed under GPL-3
