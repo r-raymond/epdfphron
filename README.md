@@ -14,6 +14,24 @@ Epdfphron is a small haskell script that manages pdf (djvu, ...) sessions. It
  * Loads a saved session. See subcommand `load`. Note that for this to work, you
    need to specify your preferred pdf viewer.
 
+
+## Dependencies and Support
+
+Epdfphron uses `procfs` to gather information, so it has no dependencies on
+external tools. On the other hand, your unix derivative has to support `procfs`
+for this to work.
+
+ :heavy_check_mark: Linux with kernel version >= 2.6
+ :heavy_multiplication_x: MacOS
+ :heavy_multiplication_x: Windows
+ :grey_question: FreeBSD, OpenBSD, ...
+
+
+If you are a FreeBSD, OpenBSD, ... user and want to try the script, please tell
+me if it works.
+
+This script has been tested with `lts-9.1`.
+
 ## How to install
 
 After installing `stack` you can call this script like any other shell script (tested with `lts-9.1`).
